@@ -143,7 +143,7 @@ void EngineBattery::setMinValue(float mv){
 }
 
 void EngineBattery::setMaxValue(float mv){
-    if (mv > 0 and mv != valueMax && mv > valueMin){
+    if (mv > 0 && mv != valueMax && mv > valueMin){
         valueMax = (float)mv;
         this->update();
     }

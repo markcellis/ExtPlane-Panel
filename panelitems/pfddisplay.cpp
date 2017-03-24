@@ -14,10 +14,14 @@ REGISTER_WITH_PANEL_ITEM_FACTORY(PFDDisplay,"display/pfd")
 #define DATAREF_ROLL "sim/cockpit2/gauges/indicators/roll_electric_deg_pilot"
 #define DATAREF_SLIP "sim/cockpit2/gauges/indicators/slip_deg"
 #define DATAREF_AIRSPEED_KTS "sim/cockpit2/gauges/indicators/airspeed_kts_pilot"
+#define DATAREF_AIRSPEED_TARGET_KTS "sim/cockpit/autopilot/airspeed"
 #define DATAREF_ALTITUDE_FT "sim/cockpit2/gauges/indicators/altitude_ft_pilot"
+#define DATAREF_ALTITUDE_TARGET_FT "sim/cockpit/autopilot/altitude"
 #define DATAREF_AIRSPEED_ACC_KTS "sim/cockpit2/gauges/indicators/airspeed_acceleration_kts_sec_pilot"
 #define DATAREF_HEADING_DEG "sim/cockpit2/gauges/indicators/heading_electric_deg_mag_pilot"
 #define DATAREF_VERTICALSPEED_FPM "sim/cockpit2/gauges/indicators/vvi_fpm_pilot"
+#define DATAREF_VERTICALSPEED_TARGET "sim/cockpit/autopilot/vertical_velocity"
+#define DATAREF_HEADING_BUG "sim/cockpit2/autopilot/heading_dial_deg_mag_pilot"
 
 #define ENGINE_STYLE_GENERIC 0
 #define ENGINE_STYLE_BOEING 1
@@ -45,11 +49,16 @@ PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _client.subscribeDataRef(DATAREF_PITCH,0.05);
     _client.subscribeDataRef(DATAREF_ROLL,0.05);
     _client.subscribeDataRef(DATAREF_SLIP,0.05);
-    _client.subscribeDataRef(DATAREF_AIRSPEED_KTS,0.5);
-    _client.subscribeDataRef(DATAREF_ALTITUDE_FT,0.5);
+    _client.subscribeDataRef(DATAREF_AIRSPEED_KTS,1.0);
+    _client.subscribeDataRef(DATAREF_AIRSPEED_TARGET_KTS,1.0);
+    _client.subscribeDataRef(DATAREF_ALTITUDE_FT,1.0);
+    _client.subscribeDataRef(DATAREF_ALTITUDE_TARGET_FT,1.0);
     _client.subscribeDataRef(DATAREF_AIRSPEED_ACC_KTS,0.5);
-    _client.subscribeDataRef(DATAREF_HEADING_DEG,0.5);
-    _client.subscribeDataRef(DATAREF_VERTICALSPEED_FPM,0.05);
+    _client.subscribeDataRef(DATAREF_HEADING_DEG,1.0);
+    _client.subscribeDataRef(DATAREF_VERTICALSPEED_FPM,1.0);
+    _client.subscribeDataRef(DATAREF_VERTICALSPEED_TARGET,1.0);
+    _client.subscribeDataRef(DATAREF_HEADING_BUG,.2);
+
     connect(&_client, SIGNAL(refChanged(QString,QStringList)), this, SLOT(refChanged(QString,QStringList)));
     connect(&_client, SIGNAL(refChanged(QString,double)), this, SLOT(refChanged(QString,double)));
 
@@ -64,15 +73,26 @@ void PFDDisplay::refChanged(QString name, double value) {
         _attitude_slipValue = value;
     } else if (name == DATAREF_AIRSPEED_KTS) {
         _airspeed_value = value;
+    } else if (name == DATAREF_AIRSPEED_TARGET_KTS) {
+        _airspeed_target_value = value;
     } else if (name == DATAREF_ALTITUDE_FT) {
         _altitude_value = value;
+    } else if (name == DATAREF_ALTITUDE_TARGET_FT) {
+        _altitude_target_value = value;
     } else if (name == DATAREF_AIRSPEED_ACC_KTS) {
         _airspeedaccl_value = value;
     } else if (name == DATAREF_HEADING_DEG) {
         _compass_heading_value =  value;
     } else if (name == DATAREF_VERTICALSPEED_FPM) {
         _verticalspeed_value =  value;
+    } else if (name == DATAREF_VERTICALSPEED_TARGET) {
+        _verticalspeed_target_value =  value;
+    } else if (name == DATAREF_HEADING_BUG) {
+        _headingBug_value =  value;
     }
+
+
+
 }
 
 void PFDDisplay::refChanged(QString name, QStringList values) {
@@ -84,22 +104,26 @@ void PFDDisplay::itemSizeChanged(float w, float h) {
     // Sizes
     _attitude_size = qMin(w,h)*0.6;
     _scale_height = h*0.8;
-    _scale_width = _attitude_size*0.19;
+//    _scale_width = _attitude_size*0.19;
+    _scale_width = _attitude_size*0.22;
     _compass_size = _attitude_size*1.4;
     _verticalspeed_size = _scale_width*0.8;
     // Pens
     _defaultPen = QPen(_colorStroke,_strokeSize, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+    _markerPen = QPen(_colorValue,_strokeSize, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
     _defaultPen2x = QPen(_colorStroke,_strokeSize*2, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
     // Fonts
     {
         _tickFont = this->defaultFont;
         _tickFont.setBold(true);
-        _tickFont.setPixelSize(w*0.035);
+        _tickFont.setPixelSize(w*0.03);
+//        _tickFont.setPixelSize(w*0.035);
     }
     {
         _valueFont = this->defaultFont;
         _valueFont.setBold(true);
-        _valueFont.setPixelSize(w*0.06);
+        _valueFont.setPixelSize(w*0.035);
+//        _valueFont.setPixelSize(w*0.06);
     }
     // Cached pixmaps
     createCompassBackplate(_compass_size,_compass_size);
@@ -123,10 +147,10 @@ void PFDDisplay::render(QPainter *painter, int width, int height) {
         // Draw airspeed scale
         int scaleHeightInt = (int)_scale_height;
         if (scaleHeightInt % 2 != 0 ) scaleHeightInt++;
-        drawScaleIndicator(painter,width,height,0,height/2-scaleHeightInt/2,_scale_width,scaleHeightInt,_airspeed_value,SCALE_INDICATOR_TYPE_AIRSPEED);
+        drawScaleIndicator(painter,width,height,0,height/2-scaleHeightInt/2,_scale_width,scaleHeightInt,_airspeed_value,_airspeed_target_value,SCALE_INDICATOR_TYPE_AIRSPEED);
 
         // Draw altitude scale
-        drawScaleIndicator(painter,width,height,width-_scale_width+attitudeOffsetX*2,height/2-scaleHeightInt/2,_scale_width,scaleHeightInt,_altitude_value,SCALE_INDICATOR_TYPE_ALTITUDE);
+        drawScaleIndicator(painter,width,height,width-_scale_width+attitudeOffsetX*2,height/2-scaleHeightInt/2,_scale_width,scaleHeightInt,_altitude_value,_altitude_target_value,SCALE_INDICATOR_TYPE_ALTITUDE);
 
         // Draw compass
         drawCompass(painter,width,height,width/2+attitudeOffsetX,height/2+_attitude_size*1.3,_compass_size,_compass_size);
@@ -326,10 +350,11 @@ int roundUp(int numToRound, int multiple)
         return numToRound + multiple - remainder;
 }
 
-void PFDDisplay::drawScaleIndicator(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h, double value, int type) {
+void PFDDisplay::drawScaleIndicator(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h, double value, double target_value,int type) {
     painter->save(); {
         // Init
         int intValue = (int)value;
+        int intTargetValue = (int)target_value;
         QRect mainRect = QRect(0,0,w,h);
 
         // Setup for type (default = airspeed)
@@ -394,74 +419,97 @@ void PFDDisplay::drawScaleIndicator(QPainter *painter, int screenWidth, int scre
                 }
             }
         }
-        painter->setClipping(false);
 
         // Draw value box
         {
-            // Bounding box
-            int valueHeight = w*0.7;
-            int valueWidth = valueHeight*0.9;
-            int xOffset = 0;
-            if(type == SCALE_INDICATOR_TYPE_ALTITUDE) {
-                xOffset = -valueHeight*0.5;
-                valueWidth = valueHeight*1.1;
-            }
+            int boxHeight = w *.6;  // 60% of the tape width
+            float pointerBodyFactor = .8f;       // The pointer body is 80% of the width
+            float pointerFactor = 1.0f - pointerBodyFactor;  // The pointer is what is left over
+            painter->save();
             QPainterPath path;
-            path.moveTo(xOffset+0,-valueHeight/2);
-            path.lineTo(valueHeight,-valueHeight/2);
-            path.lineTo(valueHeight,-valueHeight/4);
-            path.lineTo(valueHeight+valueHeight/4,0);
-            path.lineTo(valueHeight,+valueHeight/4);
-            path.lineTo(valueHeight,+valueHeight/2);
-            path.lineTo(xOffset+0,+valueHeight/2);
-            path.lineTo(xOffset+0,-valueHeight/2);
+            if(type == SCALE_INDICATOR_TYPE_ALTITUDE)
+            {
+                path.moveTo(pointerFactor * w,-.5 * boxHeight);    // Left - Lower
+                path.lineTo(w,-.5 * boxHeight);         // Right - Lower
+                path.lineTo(w,.5 * boxHeight);          // Upper - Right
+                path.lineTo(pointerFactor * w,.5 * boxHeight);     // Upper - Left
+                path.lineTo(0,0);                       // Middle - Left
+                path.lineTo(pointerFactor * w,-.5 * boxHeight);    // Left - Lower
+            }
+            else
+            {
+                path.moveTo(0,-.5 * boxHeight);         // Left - Lower
+                path.lineTo(pointerBodyFactor * w,-.5 * boxHeight);    // Right - Lower
+                path.lineTo(1 * w,0);                   // Middle - Right
+                path.lineTo(pointerBodyFactor * w,.5 * boxHeight);     // Upper - Right
+                path.lineTo(0,.5 * boxHeight);          // Upper - Left
+                path.lineTo(0,-.5 * boxHeight);         // Left - Lower
+            }
             painter->setPen(_defaultPen);
             painter->setBrush(Qt::black);
-            if(type == SCALE_INDICATOR_TYPE_ALTITUDE) {
-                painter->save();
-                painter->translate(valueHeight*1.5,0);
-                painter->scale(-1,1);
-                painter->drawPath(path);
-                painter->restore();
-            } else {
-                painter->drawPath(path);
-            }
+            painter->drawPath(path);
+
             // Draw text
-            QRect r(-xOffset,-valueHeight/2,valueWidth,valueHeight);
-            painter->drawText(r,Qt::AlignVCenter|Qt::AlignRight,QString("%1").arg(intValue),NULL);
+            if(type == SCALE_INDICATOR_TYPE_ALTITUDE)
+            {
+                QRect r(w * pointerFactor,-(.5 * boxHeight),w * pointerBodyFactor,boxHeight);
+                painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,QString("%1").arg(intValue),NULL);
+            }
+            else
+            {
+                QRect r(0,-(.5 * boxHeight),w * pointerBodyFactor,boxHeight);
+                painter->drawText(r,Qt::AlignVCenter|Qt::AlignRight,QString("%1").arg(intValue),NULL);
+
+            }
+
+            // Draw Target Markers
+
+
+            float startingY = (intValue - intTargetValue) * pixelsPerValue;
+            QPainterPath markerPath;
+            if(type == SCALE_INDICATOR_TYPE_ALTITUDE)
+            {
+                markerPath.moveTo(0,startingY);
+                markerPath.lineTo(w * pointerFactor,startingY - (.5 * boxHeight));
+                markerPath.lineTo(0,startingY - (.5 * boxHeight));
+                markerPath.lineTo(0,startingY + (.5 * boxHeight));
+                markerPath.lineTo(w * pointerFactor,startingY + (.5 * boxHeight));
+                markerPath.lineTo(0,startingY);
+            }
+            else
+            {
+                markerPath.moveTo(w,startingY);
+                markerPath.lineTo(pointerBodyFactor * w,startingY - (.5 * boxHeight));
+                markerPath.lineTo(w,startingY - (.5 * boxHeight));
+                markerPath.lineTo(w,startingY + (.5 * boxHeight));
+                markerPath.lineTo(pointerBodyFactor * w,startingY + (.5 * boxHeight));
+                markerPath.lineTo(w,startingY);
+            }
+
+            painter->setPen(_markerPen);
+            painter->setBrush(Qt::transparent);
+            painter->drawPath(markerPath);
+
+            painter->restore();
         }
 
-        // Draw value
+
+        painter->setClipping(false);
+        // Draw target value
         {
             int valueWidth = w;
             int valueHeight = valueWidth*0.3;
             QRect r(0,-h/2-valueHeight*1.3,valueWidth,valueHeight);
             painter->setPen(_colorValue);
-            painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,QString("%1").arg(intValue),NULL);
+            QFont saveFont = painter->font();
+            painter->setFont(_valueFont);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,QString("%1").arg(intTargetValue),NULL);
+            painter->setFont(saveFont);
         }
 
-        // Draw speed trend arrow
-        if(type == SCALE_INDICATOR_TYPE_AIRSPEED) {
-            // Get the height
-            float acclH = _airspeedaccl_value*pixelsPerValue*-1;
-            float acclX = w*0.86;
-            // Draw line from edge of center tick
-            painter->setPen(_defaultPen);
-            painter->drawLine(acclX,0,acclX,acclH);
-            // Draw bottom triangle
-            if(_airspeedaccl_value > 2 || _airspeedaccl_value < -2) {
-                int arrowDir = 1;
-                float arrowSize = _strokeSize*2;
-                if(_airspeedaccl_value > 0) arrowDir = -1;
-                QPainterPath path;
-                path.moveTo(acclX-_strokeSize/2,acclH+arrowSize*2*arrowDir);
-                path.lineTo(acclX-arrowSize-_strokeSize/2,acclH);
-                path.lineTo(acclX+arrowSize-_strokeSize/2,acclH);
-                painter->fillPath(path,_colorStroke);
-            }
-        }
 
-    } painter->restore();
+    }
+    painter->restore();
 }
 
 void PFDDisplay::createCompassBackplate(int w, int h) {
@@ -549,6 +597,30 @@ void PFDDisplay::drawCompass(QPainter *painter, int screenWidth, int screenHeigh
         painter->setPen(_defaultPen);
         painter->drawPath(path);
 
+        // Draw heading bug
+        {
+            painter->save();
+            float bugSize = _compass_size*0.04;
+            float bugCellSize = bugSize / 3;    //This will be a 3 X 3 graphic
+
+            r = r - bugSize;    // Place the bug right on the card
+            QPainterPath bugPath;
+            bugPath.moveTo(0,-r);
+            bugPath.lineTo(-bugCellSize,-r-bugCellSize);
+            bugPath.lineTo(-(2*bugCellSize),-r-bugCellSize);
+            bugPath.lineTo(-(2*bugCellSize),-r-(3*bugCellSize));
+            bugPath.lineTo((2*bugCellSize),-r-(3*bugCellSize));
+            bugPath.lineTo((2*bugCellSize),-r-(1*bugCellSize));
+            bugPath.lineTo((bugCellSize),-r-(1*bugCellSize));
+            bugPath.lineTo(0,-r);
+
+            painter->setPen(_markerPen);
+            painter->rotate(-_compass_heading_value);
+            painter->rotate(_headingBug_value);
+            painter->drawPath(bugPath);
+            painter->restore();
+        }
+
         // Draw value
         {
             painter->translate(-x,-y);
@@ -559,6 +631,8 @@ void PFDDisplay::drawCompass(QPainter *painter, int screenWidth, int screenHeigh
             painter->setPen(_colorValue);
             painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,QString("%1H").arg(intValue),NULL);
         }
+
+
 
     } painter->restore();
 }
@@ -572,6 +646,7 @@ void PFDDisplay::drawVerticalSpeed(QPainter *painter, int screenWidth, int scree
 
         // Init
         int intValue = (int)_verticalspeed_value;
+        int intTargetValue = (int)_verticalspeed_target_value;
         double ticks = 6;
         int valuePerTick = 500;
         int textEveryXValue = 1000;
@@ -615,6 +690,19 @@ void PFDDisplay::drawVerticalSpeed(QPainter *painter, int screenWidth, int scree
         else if(valueY > h/2) valueY = h/2;
         painter->setPen(_defaultPen2x);
         painter->drawLine(w/2,valueY,w,valueY);
+
+        // Draw target value
+        {
+            int valueWidth = w;
+            int valueHeight = w;
+            QRect r(0,-((h/2) + valueHeight),valueWidth,valueHeight);
+            painter->setPen(_colorValue);
+            QFont saveFont = painter->font();
+            painter->setFont(_valueFont);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,QString("%1").arg(intTargetValue),NULL);
+            painter->setFont(saveFont);
+        }
+
 
     } painter->restore();
 }

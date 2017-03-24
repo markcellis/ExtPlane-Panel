@@ -23,7 +23,7 @@ private:
     float value2Angle1(float value);
     float value2Angle2(float value);
     void drawAttitudeIndicator(QPainter *painter, int attitudeX, int attitudeY, int screenWidth, int screenHeight);
-    void drawScaleIndicator(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h, double value, int direction);
+    void drawScaleIndicator(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h, double value, double target_value,int direction);
     void drawCompass(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h);
     void drawVerticalSpeed(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h);
     void createCompassBackplate(int screenWidth, int screenHeight);
@@ -48,6 +48,7 @@ protected:
     QColor _colorValue;
     QPen _defaultPen;
     QPen _defaultPen2x;
+    QPen _markerPen;
     QFont _tickFont;
     QFont _valueFont;
 
@@ -60,9 +61,11 @@ protected:
     float _scale_height;
 
     float _airspeed_value;
+    float _airspeed_target_value;
     float _airspeedaccl_value;
 
     float _altitude_value;
+    float _altitude_target_value;
 
     QPixmap _compass_backplate;
     float _compass_size;
@@ -70,6 +73,9 @@ protected:
 
     float _verticalspeed_size;
     float _verticalspeed_value;
+    float _verticalspeed_target_value;
+
+    float _headingBug_value;
 
 };
 

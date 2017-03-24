@@ -8,6 +8,9 @@
 #include "../util/console.h"
 #include "extplaneclient.h"
 
+#define MAPS_API_KEY "AIzaSyAeKX4PzLEefpE21WRnDgZa84XItJ-mHcA"  // Old Key, it no longer works, we should make this a property
+                                                                // so users can get their own key
+
 MapInstrument::MapInstrument(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     PanelItem(panel, PanelItemTypeGauge, PanelItemShapeRectangular),
     _client(this, typeName(), conn) {
@@ -23,7 +26,7 @@ MapInstrument::MapInstrument(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _googleMapsMaximumUpdateRate = 1000;
     _googleMapsType = "";
     _googleMapsStyle = "feature:road.local|element:geometry|color:0x00ff00|weight:1|visibility:on&style=feature:landscape|element:geometry.fill|color:0x000000|visibility:on&style=feature:administrative|element:labels|weight:3.9|visibility:on|invert_lightness:true&style=feature:poi|visibility:simplified&style=feature:all|element:labels|visibility:off";
-    _googleMapsAPIKey = "AIzaSyAeKX4PzLEefpE21WRnDgZa84XItJ-mHcA";
+    _googleMapsAPIKey = MAPS_API_KEY;
     _lastUpdateTime.restart();
 
     // Make connection and register data refs
