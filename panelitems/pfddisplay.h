@@ -27,6 +27,7 @@ private:
     void drawCompass(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h);
     void drawVerticalSpeed(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h);
     void createCompassBackplate(int screenWidth, int screenHeight);
+    void drawDiamond(QPainter *painter,float x,float y,float radius);
 
 signals:
 
@@ -48,9 +49,11 @@ protected:
     QColor _colorValue;
     QPen _defaultPen;
     QPen _defaultPen2x;
+    QPen _diamondPen;
     QPen _markerPen;
     QFont _tickFont;
     QFont _valueFont;
+    QFont _baroFont;
 
     float _attitude_size;
     float _attitude_rollValue;
@@ -64,8 +67,18 @@ protected:
     float _airspeed_target_value;
     float _airspeedaccl_value;
 
+
+
     float _altitude_value;
     float _altitude_target_value;
+
+    // For ILS Indicators
+    int _hsi_has_horizontal_signal;
+    int _hsi_has_vertical_signal;
+    float _hsi_horizontal_dots;
+    float _hsi_vertical_dots;
+    int _hsi_glideslope_flag;
+
 
     QPixmap _compass_backplate;
     float _compass_size;
@@ -76,6 +89,8 @@ protected:
     float _verticalspeed_target_value;
 
     float _headingBug_value;
+    int   _metric_press;
+    float _barometer_setting;
 
 };
 

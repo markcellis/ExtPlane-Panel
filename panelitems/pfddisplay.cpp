@@ -23,6 +23,18 @@ REGISTER_WITH_PANEL_ITEM_FACTORY(PFDDisplay,"display/pfd")
 #define DATAREF_VERTICALSPEED_TARGET "sim/cockpit/autopilot/vertical_velocity"
 #define DATAREF_HEADING_BUG "sim/cockpit2/autopilot/heading_dial_deg_mag_pilot"
 
+#define DATAREF_HSI_HAS_HORIZONTAL_SIGNAL  "sim/cockpit2/radios/indicators/hsi_display_horizontal_pilot"
+#define DATAREF_HSI_HAS_VERTICAL_SIGNAL "sim/cockpit2/radios/indicators/hsi_display_vertical_pilot"
+#define DATAREF_HSI_HORIZONTAL_DOTS  "sim/cockpit2/radios/indicators/hsi_hdef_dots_pilot"
+#define DATAREF_HSI_VERTICAL_DOTS  "sim/cockpit2/radios/indicators/hsi_vdef_dots_pilot"
+#define DATAREF_HSI_GLIDESLOPE_FLAG "sim/cockpit2/radios/indicators/hsi_flag_glideslope_pilot"
+
+#define DATAREF_METRIC_PRESS "sim/physics/metric_press"   // 0 is HG 1 is Millibars
+#define DATAREF_BAROMETER_SETTING "sim/cockpit/misc/barometer_setting"
+
+#define MILLIBARS_FACTOR 33.8639f
+
+
 #define ENGINE_STYLE_GENERIC 0
 #define ENGINE_STYLE_BOEING 1
 
@@ -58,12 +70,26 @@ PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _client.subscribeDataRef(DATAREF_VERTICALSPEED_FPM,1.0);
     _client.subscribeDataRef(DATAREF_VERTICALSPEED_TARGET,1.0);
     _client.subscribeDataRef(DATAREF_HEADING_BUG,.2);
+    _client.subscribeDataRef(DATAREF_HSI_HAS_HORIZONTAL_SIGNAL,.2);
+    _client.subscribeDataRef(DATAREF_HSI_HAS_VERTICAL_SIGNAL,.2);
+    _client.subscribeDataRef(DATAREF_HSI_HORIZONTAL_DOTS,.05);
+    _client.subscribeDataRef(DATAREF_HSI_VERTICAL_DOTS,.05);
+    _client.subscribeDataRef(DATAREF_HSI_GLIDESLOPE_FLAG,.2);
+    _client.subscribeDataRef(DATAREF_METRIC_PRESS,.2);
+    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.2);
+
+
 
     connect(&_client, SIGNAL(refChanged(QString,QStringList)), this, SLOT(refChanged(QString,QStringList)));
     connect(&_client, SIGNAL(refChanged(QString,double)), this, SLOT(refChanged(QString,double)));
 
 }
 
+    int _hsi_has_horizontal_signal;
+    int _hsi_has_vertical_signal;
+    float _hsi_horizontal_dots;
+    float _hsi_vertical_dots;
+    int _hsi_glideslope_flag;
 void PFDDisplay::refChanged(QString name, double value) {
     if (name == DATAREF_ROLL) {
         _attitude_rollValue = value;
@@ -89,9 +115,21 @@ void PFDDisplay::refChanged(QString name, double value) {
         _verticalspeed_target_value =  value;
     } else if (name == DATAREF_HEADING_BUG) {
         _headingBug_value =  value;
+    } else if (name == DATAREF_HSI_HAS_HORIZONTAL_SIGNAL) {
+        _hsi_has_horizontal_signal =  value;
+    } else if (name == DATAREF_HSI_HAS_VERTICAL_SIGNAL) {
+        _hsi_has_vertical_signal =  value;
+    } else if (name == DATAREF_HSI_HORIZONTAL_DOTS) {
+        _hsi_horizontal_dots =  value;
+    } else if (name == DATAREF_HSI_VERTICAL_DOTS) {
+        _hsi_vertical_dots =  value;
+    } else if (name == DATAREF_HSI_GLIDESLOPE_FLAG) {
+        _hsi_glideslope_flag =  value;
+    }else if (name == DATAREF_METRIC_PRESS) {
+        _metric_press =  value;
+    }else if (name == DATAREF_BAROMETER_SETTING) {
+        _barometer_setting =  value;
     }
-
-
 
 }
 
@@ -104,7 +142,6 @@ void PFDDisplay::itemSizeChanged(float w, float h) {
     // Sizes
     _attitude_size = qMin(w,h)*0.6;
     _scale_height = h*0.8;
-//    _scale_width = _attitude_size*0.19;
     _scale_width = _attitude_size*0.22;
     _compass_size = _attitude_size*1.4;
     _verticalspeed_size = _scale_width*0.8;
@@ -112,19 +149,20 @@ void PFDDisplay::itemSizeChanged(float w, float h) {
     _defaultPen = QPen(_colorStroke,_strokeSize, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
     _markerPen = QPen(_colorValue,_strokeSize, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
     _defaultPen2x = QPen(_colorStroke,_strokeSize*2, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+    _diamondPen = QPen(_colorValue,_strokeSize*2, Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
     // Fonts
-    {
-        _tickFont = this->defaultFont;
-        _tickFont.setBold(true);
-        _tickFont.setPixelSize(w*0.03);
-//        _tickFont.setPixelSize(w*0.035);
-    }
-    {
-        _valueFont = this->defaultFont;
-        _valueFont.setBold(true);
-        _valueFont.setPixelSize(w*0.035);
-//        _valueFont.setPixelSize(w*0.06);
-    }
+    _tickFont = this->defaultFont;
+    _tickFont.setBold(true);
+    _tickFont.setPixelSize(w*0.03);
+
+    _valueFont = this->defaultFont;
+    _valueFont.setBold(true);
+    _valueFont.setPixelSize(w*0.035);
+
+    _baroFont = this->defaultFont;
+    _baroFont.setBold(true);
+    _baroFont.setPixelSize(w*0.02);
+
     // Cached pixmaps
     createCompassBackplate(_compass_size,_compass_size);
 }
@@ -136,7 +174,6 @@ void PFDDisplay::render(QPainter *painter, int width, int height) {
         // Painter init
         painter->setFont(_tickFont);
 
-        // Draw attitude
         int attitudeOffsetX = -_attitude_size*0.1;
         drawAttitudeIndicator(painter,width/2+attitudeOffsetX,height/2,_attitude_size,_attitude_size);
 
@@ -159,11 +196,84 @@ void PFDDisplay::render(QPainter *painter, int width, int height) {
 
 }
 
+/*
+    This function will draw the ILS / VOR diamond
+
+*/
+    void PFDDisplay::drawDiamond(QPainter *painter,float x,float y,float radius)
+    {
+        painter->setPen(_diamondPen);
+        painter->setBrush(_colorValue);
+        QPainterPath path;
+        path.moveTo(x + radius,y);
+        path.lineTo(x,y - radius );
+        path.lineTo(x - radius,y);
+        path.lineTo(x,y + radius );
+        path.lineTo(x + radius,y);
+        painter->drawPath(path);
+    }
+
 void PFDDisplay::drawAttitudeIndicator(QPainter *painter, int attitudeX, int attitudeY, int attitudeWidth, int attitudeHeight) {
     painter->save(); {
+
+
+        // Draw the ILS Dots
+        // This assumes we have 10% of the width and height on the left and right of the attitude indicator
+        // Move to center
+
+        float IlsDotBufferSpace = .1;      // 10% of the width
+
+        {
+
+            painter->save();
+            painter->translate(attitudeX,attitudeY);        // go to the center
+
+            float attitudeSize = (float)attitudeWidth;
+            float ilsAreaWidthandHeight = attitudeSize * (IlsDotBufferSpace / 2);
+            float ilsDotRadius = ilsAreaWidthandHeight * .15;   // The dot and diamond will be 30% of the ils drawing area
+            float ilsDotSpacing = (attitudeSize * .9f) / 6.0f;   // 90% of the attitude indicator for 6 dots
+            float offset = (attitudeSize / 2) - (ilsAreaWidthandHeight / 2);    // Offset from the center of the attitude indicator
+
+            painter->setPen(_defaultPen);       // White narrow pen
+            for(int i = -2; i < 3;i++)  // Draw five dots
+            {
+                if(_hsi_has_vertical_signal && !_hsi_glideslope_flag)   // Only draw them if we have a vnav signal and glidescope capture
+                {
+                    painter->drawEllipse(QPointF(offset,ilsDotSpacing * i), ilsDotRadius, ilsDotRadius);
+                }
+                if(_hsi_has_horizontal_signal)  // Only if we have hnav signal
+                {
+                    painter->drawEllipse(QPointF(ilsDotSpacing * i,offset), ilsDotRadius, ilsDotRadius);
+                }
+            }
+
+            float startY;       // For diamond drawing
+            float startX;       // For diamond drawing
+            if(_hsi_has_vertical_signal && !_hsi_glideslope_flag)
+            {
+                startY = _hsi_vertical_dots * ilsDotSpacing;
+                startX = offset;
+                drawDiamond(painter,startX,startY,ilsDotRadius);
+            }
+            if(_hsi_has_horizontal_signal)
+            {
+                startX = _hsi_horizontal_dots * ilsDotSpacing;
+                startY = offset;
+                drawDiamond(painter,startX,startY,ilsDotRadius);
+            }
+
+            painter->restore();
+        }
+
+
+
+        // The attidude indicator takes up 90% of the drawing space
+        attitudeWidth = attitudeWidth * (1.0f-IlsDotBufferSpace);
+        attitudeHeight = attitudeHeight * (1.0f-IlsDotBufferSpace);
+
         // Init
         double pitch = _attitude_pitchValue;
-        double pixelsPerPitchDeg = (_attitude_size*0.02f);
+        double pixelsPerPitchDeg = (attitudeWidth*0.02f);
         //pitch = 10;
         //if (pitch > maxPitch) pitch = maxPitch;
         //if (pitch < (0-maxPitch)) pitch = (0-maxPitch);
@@ -174,7 +284,7 @@ void PFDDisplay::drawAttitudeIndicator(QPainter *painter, int attitudeX, int att
         // Make sure to clip the widget because of moving card
         QPainterPath clipPath;
         clipPath.setFillRule(Qt::WindingFill);
-        clipPath.addRoundedRect(QRect(-attitudeWidth/2,-attitudeHeight/2,attitudeWidth,attitudeHeight), _attitude_size*0.1, _attitude_size*0.1 );
+        clipPath.addRoundedRect(QRect(-attitudeWidth/2,-attitudeHeight/2,attitudeWidth,attitudeHeight), attitudeWidth*0.1, attitudeHeight*0.1 );
         painter->setClipPath(clipPath);
 
         // Draw background (sky)
@@ -501,12 +611,29 @@ void PFDDisplay::drawScaleIndicator(QPainter *painter, int screenWidth, int scre
             int valueHeight = valueWidth*0.3;
             QRect r(0,-h/2-valueHeight*1.3,valueWidth,valueHeight);
             painter->setPen(_colorValue);
-            QFont saveFont = painter->font();
             painter->setFont(_valueFont);
             painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,QString("%1").arg(intTargetValue),NULL);
-            painter->setFont(saveFont);
         }
 
+        // Draw target value
+        if(type == SCALE_INDICATOR_TYPE_ALTITUDE)
+        {
+            int valueWidth = w;
+            int valueHeight = valueWidth*0.2;
+            QString str;
+            QRect r(0,h/2+valueHeight,valueWidth,valueHeight);
+            painter->setPen(_colorStroke);
+            painter->setFont(_baroFont);
+            if(_metric_press)
+            {
+                str =QString("%1 HPA").arg(_barometer_setting * MILLIBARS_FACTOR,4,'f',0);
+            }
+            else
+            {
+                str =QString("%1 IN").arg(_barometer_setting,5,'f',2);
+            }
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,str,NULL);
+        }
 
     }
     painter->restore();
