@@ -76,7 +76,7 @@ PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _client.subscribeDataRef(DATAREF_HSI_VERTICAL_DOTS,.05);
     _client.subscribeDataRef(DATAREF_HSI_GLIDESLOPE_FLAG,.2);
     _client.subscribeDataRef(DATAREF_METRIC_PRESS,.2);
-    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.2);
+    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.01);
 
 
 
@@ -161,7 +161,7 @@ void PFDDisplay::itemSizeChanged(float w, float h) {
 
     _baroFont = this->defaultFont;
     _baroFont.setBold(true);
-    _baroFont.setPixelSize(w*0.02);
+    _baroFont.setPixelSize(w*0.03);
 
     // Cached pixmaps
     createCompassBackplate(_compass_size,_compass_size);
@@ -621,7 +621,7 @@ void PFDDisplay::drawScaleIndicator(QPainter *painter, int screenWidth, int scre
             int valueWidth = w;
             int valueHeight = valueWidth*0.2;
             QString str;
-            QRect r(0,h/2+valueHeight,valueWidth,valueHeight);
+            QRect r(0,h/2+valueHeight,valueWidth * 2,valueHeight);
             painter->setPen(_colorStroke);
             painter->setFont(_baroFont);
             if(_metric_press)
@@ -632,7 +632,7 @@ void PFDDisplay::drawScaleIndicator(QPainter *painter, int screenWidth, int scre
             {
                 str =QString("%1 IN").arg(_barometer_setting,5,'f',2);
             }
-            painter->drawText(r,Qt::AlignVCenter|Qt::AlignCenter,str,NULL);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
         }
 
     }

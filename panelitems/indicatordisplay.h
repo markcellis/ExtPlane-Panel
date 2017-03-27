@@ -17,7 +17,7 @@ public:
     virtual void storeSettings(QSettings &settings);
     virtual void loadSettings(QSettings &settings);
     virtual void createSettings(QGridLayout *layout);
-    //virtual void itemSizeChanged(float w, float h);
+    virtual void itemSizeChanged(float w, float h);
 
 private:
 
@@ -38,19 +38,26 @@ public slots:
     void setStrengthOn(int val) { _strengthOn = val; }
     void setStrengthOff(int val) { _strengthOff = val; }
     void setShowValue(bool val) { _showValue = val; }
+    void setShowFloat(bool val) { _showFloat = val; }
+    void setFloatFormat(QString name);
     void loadPreset(int val);
 
 private:
+
+    void update(void);
+
     // Internal variables
     //ExtPlaneClient _client;
     //double _datarefValue;
     bool _on;
     QString _datarefValue;
+    QString _floatFormat;
 
     // Configuration variables
     QString _labelOn;
     QString _labelOff;
     bool _showValue;
+    bool _showFloat;
     QColor _labelColor;
     QColor _valueColor;
     int _valueDivisor;
@@ -58,6 +65,7 @@ private:
     double _threshold;
     int _strengthOn;
     int _strengthOff;
+    double _datarefFloatValue;
 
 };
 

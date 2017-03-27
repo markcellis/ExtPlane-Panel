@@ -33,6 +33,7 @@ IndicatorDisplay::IndicatorDisplay(ExtPlanePanel *panel, ExtPlaneConnection *con
 
     // Defaults
     setDataRefName("sim/flightmodel/controls/parkbrake");
+    setFloatFormat("%f");
     setSize(100,30);
 
 }
@@ -49,7 +50,9 @@ void IndicatorDisplay::storeSettings(QSettings &settings) {
     settings.setValue("labelcolor", _labelColor.name());
     settings.setValue("valuecolor", _valueColor.name());
     settings.setValue("showvalue", _showValue);
+    settings.setValue("showfloat", _showFloat);
     settings.setValue("valuedivisor", _valueDivisor);
+    settings.setValue("floatformat", _floatFormat);
 }
 
 void IndicatorDisplay::loadSettings(QSettings &settings) {
@@ -64,7 +67,9 @@ void IndicatorDisplay::loadSettings(QSettings &settings) {
     setLabelColor(QColor(settings.value("labelcolor","white").toString()));
     setValueColor(QColor(settings.value("valuecolor","white").toString()));
     setShowValue(settings.value("showvalue","false").toString()=="true");
+    setShowFloat(settings.value("showfloat","false").toString()=="true");
     setValueDivisor(settings.value("valuedivisor","1").toInt());
+    setFloatFormat(settings.value("floatformat","%f").toString());
 
     DEBUG << _datarefName;
 }
@@ -120,6 +125,8 @@ void IndicatorDisplay::createSettings(QGridLayout *layout) {
     createLineEditSetting(layout,"Label Off",_labelOff,SLOT(setLabelOff(QString)));
     createColorSetting(layout,"Label Color",_labelColor,SLOT(setLabelColor(QColor)));
     createCheckboxSetting(layout,"Show Value",_showValue,SLOT(setShowValue(bool)));
+    createCheckboxSetting(layout,"Show as Float",_showFloat,SLOT(setShowFloat(bool)));
+    createLineEditSetting(layout,"Float Format",_floatFormat,SLOT(setFloatFormat(QString)));
     createColorSetting(layout,"Value Color",_valueColor,SLOT(setValueColor(QColor)));
     createNumberInputSetting(layout,"Value Divisor",_valueDivisor,SLOT(setValueDivisor(float)));
 }
@@ -133,6 +140,8 @@ void IndicatorDisplay::loadPreset(int val) {
     _threshold = 0.1;
     _valueDivisor = 1;
     _showValue = false;
+    _showFloat = false;
+    setFloatFormat("%f");
     if(val == 1) {
         _labelOn = "BRAKES";
         _labelOff = "BRAKES";
@@ -258,6 +267,12 @@ void IndicatorDisplay::loadPreset(int val) {
     }
 }
 
+void IndicatorDisplay::setFloatFormat(QString name) {
+
+    _floatFormat = name;
+}
+
+
 void IndicatorDisplay::setDataRefName(QString name) {
 
     // Unsubscribe old
@@ -276,17 +291,55 @@ void IndicatorDisplay::dataRefChanged(QString name, QString val) {
     //update();
 }
 
-void IndicatorDisplay::dataRefChanged(QString name, double val) {
-    if(name != _datarefName) return;
 
+void IndicatorDisplay::itemSizeChanged(float w, float h)
+{
+    DisplayInstrument::itemSizeChanged(w,h);
+    update();
+}
+
+
+
+/*
+ * This function will format a new value string if necessary as well as determining the label on/off flag
+ *
+*/
+
+void IndicatorDisplay::update(void)
+{
     // On or off?
     //DEBUG << name << val;
-    int valInt = (int)val;
-    if(_valueDivisor > 1) valInt = valInt/_valueDivisor;
-    if(_showValue) _datarefValue = QString("%1").arg(valInt);
+    int valInt = (int)_datarefFloatValue;
+    double valDouble = _datarefFloatValue;
+    if(_valueDivisor > 1)
+    {
+        valInt = valInt/_valueDivisor;
+        valDouble = valDouble / _valueDivisor;
+    }
+    if(_showValue)
+    {
+        if(_showFloat)
+        {
+            if(_floatFormat.length() > 0)
+            {
+                QByteArray ba = _floatFormat.toLatin1();
+                const char *formatStr = ba.data();
+                _datarefValue.sprintf(formatStr,valDouble);
+            }
+            else
+            {
+                _datarefValue = QString("%1").arg(valDouble);
+            }
+
+        }
+        else
+        {
+            _datarefValue = QString("%1").arg(valInt);
+        }
+    }
 
     // Set on/off based on threshhold
-    bool newOn = (val > _threshold);
+    bool newOn = (_datarefFloatValue > _threshold);
 
     // Override if we have no avionics power
     if(!this->panel()->hasAvionicsPower) newOn = false;
@@ -296,6 +349,14 @@ void IndicatorDisplay::dataRefChanged(QString name, double val) {
         _on = newOn;
         //update();
     }
+
+}
+
+void IndicatorDisplay::dataRefChanged(QString name, double val) {
+    if(name != _datarefName) return;
+
+    _datarefFloatValue = val;
+    update();
 }
 
 void IndicatorDisplay::render(QPainter *painter, int width, int height) {
