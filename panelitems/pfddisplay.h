@@ -28,12 +28,15 @@ private:
     void drawVerticalSpeed(QPainter *painter, int screenWidth, int screenHeight, int x, int y, int w, int h);
     void createCompassBackplate(int screenWidth, int screenHeight);
     void drawDiamond(QPainter *painter,float x,float y,float radius);
+    void drawGpsAnnunciator(QPainter *painter, int annunciatorX, int annunciatorY, int annunciatorWidth, int annunciatorHeight);
+
 
 signals:
 
 public slots:
     void refChanged(QString name, double value);
     void refChanged(QString name, QStringList values);
+    void refChanged(QString name, QString value);
 
     void setStyle(int val) {_style=val;}
 
@@ -47,6 +50,9 @@ protected:
     QColor _colorStroke;
     QColor _colorWhisker;
     QColor _colorValue;
+    QColor _colorYellow;
+    QColor _colorGreen;
+
     QPen _defaultPen;
     QPen _defaultPen2x;
     QPen _diamondPen;
@@ -54,6 +60,7 @@ protected:
     QFont _tickFont;
     QFont _valueFont;
     QFont _baroFont;
+    QFont _annunciatorFont;
 
     float _attitude_size;
     float _attitude_rollValue;
@@ -66,6 +73,7 @@ protected:
     float _airspeed_value;
     float _airspeed_target_value;
     float _airspeedaccl_value;
+    float _hsi_obs_deg_mag;
 
 
 
@@ -83,14 +91,23 @@ protected:
     QPixmap _compass_backplate;
     float _compass_size;
     float _compass_heading_value;
-
     float _verticalspeed_size;
     float _verticalspeed_value;
     float _verticalspeed_target_value;
-
     float _headingBug_value;
+    float _hsi_dme_distance_nm_pilot;
     int   _metric_press;
     float _barometer_setting;
+    int _autopilot_on;
+    int _autopilot_state;
+    int _hsi_source_select_pilot;
+    int _hsi_has_dme_pilot;
+    int _hsi_dme_speed_kts_pilot;
+    QString _nav1_nav_id;
+    QString _nav2_nav_id;
+    QString _gps_nav_id;
+
+
 
 };
 

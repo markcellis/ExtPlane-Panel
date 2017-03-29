@@ -28,18 +28,47 @@ REGISTER_WITH_PANEL_ITEM_FACTORY(PFDDisplay,"display/pfd")
 #define DATAREF_HSI_HORIZONTAL_DOTS  "sim/cockpit2/radios/indicators/hsi_hdef_dots_pilot"
 #define DATAREF_HSI_VERTICAL_DOTS  "sim/cockpit2/radios/indicators/hsi_vdef_dots_pilot"
 #define DATAREF_HSI_GLIDESLOPE_FLAG "sim/cockpit2/radios/indicators/hsi_flag_glideslope_pilot"
-
 #define DATAREF_METRIC_PRESS "sim/physics/metric_press"   // 0 is HG 1 is Millibars
 #define DATAREF_BAROMETER_SETTING "sim/cockpit/misc/barometer_setting"
+#define DATAREF_HSI_OBS_DEG_MAG "sim/cockpit2/radios/actuators/hsi_obs_deg_mag_pilot"
+#define DATAREF_AUTOPILOT_STATE "sim/cockpit/autopilot/autopilot_state"
+#define DATAREF_AUTOPILOT_ON "sim/cockpit2/autopilot/flight_director_mode"
+#define DATAREF_NAV1_NAV_ID "sim/cockpit2/radios/indicators/nav1_nav_id"
+#define DATAREF_NAV2_NAV_ID "sim/cockpit2/radios/indicators/nav2_nav_id"
+#define DATAREF_GPS_NAV_ID "sim/cockpit2/radios/indicators/gps_nav_id"
+#define DATAREF_HSI_SOURCE_SELECT_PILOT "sim/cockpit2/radios/actuators/HSI_source_select_pilot"
+#define DATAREF_HSI_HAS_DME_PILOT "sim/cockpit2/radios/indicators/hsi_has_dme_pilot"
+#define DATAREF_HSI_DME_DISTANCE_NM_PILOT "sim/cockpit2/radios/indicators/hsi_dme_distance_nm_pilot"
+#define DATAREF_HSI_DME_SPEED_KTS_PILOT "sim/cockpit2/radios/indicators/hsi_dme_speed_kts_pilot"
 
 #define MILLIBARS_FACTOR 33.8639f
-
 
 #define ENGINE_STYLE_GENERIC 0
 #define ENGINE_STYLE_BOEING 1
 
 #define SCALE_INDICATOR_TYPE_AIRSPEED 1
 #define SCALE_INDICATOR_TYPE_ALTITUDE 2
+
+#define ILS_BUFFER_SPACE .1f        // This is the percentage (10%) of the attiude size that can be used for the ILS dots
+                                    // above and below the attiude indicator
+
+#define AUTOTHROTTLE_ENGAGE (_autopilot_state & 1)
+#define HEADING_HOLD_ENGAGE (_autopilot_state & 2)
+#define ALTITUDE_HOLD_ARM (_autopilot_state & 32)
+#define ALTITUDE_HOLD_ENGAGED (_autopilot_state & 16384)
+#define HNAV_ARMED (_autopilot_state & 256)
+#define HNAV_ENGAGED (_autopilot_state & 512)
+#define GLIDESLOPE_ARMED (_autopilot_state & 1024)
+#define GLIDESLOPE_ENGAGED (_autopilot_state & 2048)
+#define VVI_CLIMB_ENGAGED (_autopilot_state & 16)
+#define AIRSPEED_HOLD (_autopilot_state & 8)
+#define FLIGHT_LEVEL_CHANGE_ENGAGE (_autopilot_state & 64)
+#define VNAV_ENGAGED (_autopilot_state & 4096)
+
+
+
+
+
 
 PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
         DisplayInstrument(panel,conn) {
@@ -52,12 +81,16 @@ PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _colorStroke = QColor(255,255,255);
     _colorWhisker = QColor(0,0,0);
     _colorValue = QColor(255,0,255);
+    _colorGreen = QColor(0,255,0);
+    _colorYellow = QColor(255,255,0);
+
 
     // Init attitude
     _attitude_pitchValue = 10;
     _attitude_rollValue = -20;
 
     // Connect
+
     _client.subscribeDataRef(DATAREF_PITCH,0.05);
     _client.subscribeDataRef(DATAREF_ROLL,0.05);
     _client.subscribeDataRef(DATAREF_SLIP,0.05);
@@ -76,21 +109,29 @@ PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _client.subscribeDataRef(DATAREF_HSI_VERTICAL_DOTS,.05);
     _client.subscribeDataRef(DATAREF_HSI_GLIDESLOPE_FLAG,.2);
     _client.subscribeDataRef(DATAREF_METRIC_PRESS,.2);
-    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.01);
+    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.2);
+    _client.subscribeDataRef(DATAREF_HSI_OBS_DEG_MAG,.2);
+    _client.subscribeDataRef(DATAREF_AUTOPILOT_ON,.9);
+    _client.subscribeDataRef(DATAREF_AUTOPILOT_STATE,.9);
+    _client.subscribeDataRef(DATAREF_HSI_SOURCE_SELECT_PILOT,.9);
+    _client.subscribeDataRef(DATAREF_NAV1_NAV_ID,1000);
+    _client.subscribeDataRef(DATAREF_NAV2_NAV_ID,1000);
+    _client.subscribeDataRef(DATAREF_GPS_NAV_ID,1000);
+    _client.subscribeDataRef(DATAREF_HSI_HAS_DME_PILOT,.9);
+    _client.subscribeDataRef(DATAREF_HSI_DME_DISTANCE_NM_PILOT,.09);
+    _client.subscribeDataRef(DATAREF_HSI_DME_SPEED_KTS_PILOT,.09);
+
 
 
 
     connect(&_client, SIGNAL(refChanged(QString,QStringList)), this, SLOT(refChanged(QString,QStringList)));
     connect(&_client, SIGNAL(refChanged(QString,double)), this, SLOT(refChanged(QString,double)));
+    connect(&_client, SIGNAL(refChanged(QString,QString)), this, SLOT(refChanged(QString,QString)));
 
 }
 
-    int _hsi_has_horizontal_signal;
-    int _hsi_has_vertical_signal;
-    float _hsi_horizontal_dots;
-    float _hsi_vertical_dots;
-    int _hsi_glideslope_flag;
-void PFDDisplay::refChanged(QString name, double value) {
+
+    void PFDDisplay::refChanged(QString name, double value) {
     if (name == DATAREF_ROLL) {
         _attitude_rollValue = value;
     } else if (name == DATAREF_PITCH) {
@@ -125,15 +166,43 @@ void PFDDisplay::refChanged(QString name, double value) {
         _hsi_vertical_dots =  value;
     } else if (name == DATAREF_HSI_GLIDESLOPE_FLAG) {
         _hsi_glideslope_flag =  value;
-    }else if (name == DATAREF_METRIC_PRESS) {
+    } else if (name == DATAREF_METRIC_PRESS) {
         _metric_press =  value;
-    }else if (name == DATAREF_BAROMETER_SETTING) {
+    } else if (name == DATAREF_BAROMETER_SETTING) {
         _barometer_setting =  value;
+    } else if (name == DATAREF_HSI_OBS_DEG_MAG) {
+        _hsi_obs_deg_mag =  value;
+    } else if (name == DATAREF_AUTOPILOT_ON) {
+        _autopilot_on =  (int)value;
+    } else if (name == DATAREF_AUTOPILOT_STATE) {
+        _autopilot_state =  (int)value;
+    } else if (name == DATAREF_HSI_SOURCE_SELECT_PILOT) {
+        _hsi_source_select_pilot =  (int)value;
+    } else if (name == DATAREF_HSI_HAS_DME_PILOT) {
+        _hsi_has_dme_pilot =  (int)value;
+    } else if (name == DATAREF_HSI_DME_DISTANCE_NM_PILOT) {
+        _hsi_dme_distance_nm_pilot =  value;
+    } else if (name == DATAREF_HSI_DME_SPEED_KTS_PILOT) {
+        _hsi_dme_speed_kts_pilot = (int)value;
     }
+
+
 
 }
 
 void PFDDisplay::refChanged(QString name, QStringList values) {
+
+}
+
+void PFDDisplay::refChanged(QString name, QString value) {
+
+    if (name == DATAREF_NAV1_NAV_ID) {
+        _nav1_nav_id = value;
+    } else if(name == DATAREF_NAV2_NAV_ID) {
+        _nav2_nav_id = value;
+    } else if(name == DATAREF_GPS_NAV_ID) {
+        _gps_nav_id = value;
+    }
 
 }
 
@@ -163,6 +232,11 @@ void PFDDisplay::itemSizeChanged(float w, float h) {
     _baroFont.setBold(true);
     _baroFont.setPixelSize(w*0.03);
 
+
+    _annunciatorFont = this->defaultFont;
+    _annunciatorFont.setBold(true);
+    _annunciatorFont.setPixelSize(w*0.025);
+
     // Cached pixmaps
     createCompassBackplate(_compass_size,_compass_size);
 }
@@ -175,7 +249,15 @@ void PFDDisplay::render(QPainter *painter, int width, int height) {
         painter->setFont(_tickFont);
 
         int attitudeOffsetX = -_attitude_size*0.1;
+        int annunciatorWidth = _attitude_size;
+        int annunciatorHeight = (height/2) - (_attitude_size / 2);
+
         drawAttitudeIndicator(painter,width/2+attitudeOffsetX,height/2,_attitude_size,_attitude_size);
+        drawGpsAnnunciator(painter,
+                           width/2+attitudeOffsetX, // X
+                           (height/2) - (_attitude_size / 2) - (annunciatorHeight / 2) + ((_attitude_size / 2)*ILS_BUFFER_SPACE), //Y
+                           annunciatorWidth,
+                           annunciatorHeight);
 
         // Draw vertical speed
         float verticalSpeedHeight = _scale_height*0.6;
@@ -213,6 +295,249 @@ void PFDDisplay::render(QPainter *painter, int width, int height) {
         painter->drawPath(path);
     }
 
+    void PFDDisplay::drawGpsAnnunciator(QPainter *painter, int annunciatorX, int annunciatorY, int annunciatorWidth, int annunciatorHeight)
+    {
+        painter->save();
+        // Move to center position
+        painter->translate(annunciatorX,annunciatorY);
+
+        int cellWidth = annunciatorWidth / 4;
+        int cellHeight = (annunciatorHeight * .8) / 4;  // Tighten the vertical spacing just a tad
+
+        QString str;
+        QRect r;
+
+        painter->setFont(_annunciatorFont);
+
+        // ALT MODE
+        if(ALTITUDE_HOLD_ARM || ALTITUDE_HOLD_ENGAGED)
+        {
+            r.setRect(cellWidth,
+                      -(2*cellHeight),
+                      cellWidth,
+                      cellHeight);
+            if(ALTITUDE_HOLD_ARM)
+            {
+                str.sprintf("ALT ARM");
+                painter->setPen(_colorYellow);
+            }
+            else
+            {
+                str.sprintf("ALT ENG");
+                painter->setPen(_colorGreen);
+            }
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+
+        }
+
+        // AP On/Off
+        r.setRect(-cellWidth,
+                  -(2*cellHeight),
+                  cellWidth,
+                  cellHeight);
+
+        switch(_autopilot_on)
+        {
+        case 0:
+            str.sprintf("AP OFF");
+            painter->setPen(_colorYellow);
+            break;
+        case 1:
+            str.sprintf("FD ON");
+            painter->setPen(_colorGreen);
+            break;
+        case 2:
+            str.sprintf("AP/FD ON");
+            painter->setPen(_colorGreen);
+            break;
+        }
+        painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+
+        // HDG
+        if(HEADING_HOLD_ENGAGE)
+        {
+            r.setRect(0,
+                      -(2*cellHeight),
+                      cellWidth,
+                      cellHeight);
+            str.sprintf("HDG SEL");
+            painter->setPen(_colorGreen);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+        // NAV
+        r.setRect(0,
+                  -cellHeight,
+                  cellWidth,
+                  cellHeight);
+        if(HNAV_ARMED)
+        {
+            painter->setPen(_colorYellow);
+            str.sprintf("LOC ARM");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        } else if(HNAV_ENGAGED)
+        {
+            painter->setPen(_colorGreen);
+            str.sprintf("LOC ENG");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+        // APR
+        r.setRect(cellWidth,
+                  -cellHeight,
+                  cellWidth,
+                  cellHeight);
+        if(GLIDESLOPE_ARMED)
+        {
+            painter->setPen(_colorYellow);
+            str.sprintf("G/S ARM");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        } else if(GLIDESLOPE_ENGAGED)
+        {
+            painter->setPen(_colorGreen);
+            str.sprintf("G/S ENG");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+        // VS
+        r.setRect(cellWidth,
+                  0,
+                  cellWidth,
+                  cellHeight);
+        if(VVI_CLIMB_ENGAGED)
+        {
+            painter->setPen(_colorGreen);
+            str.sprintf("VS ENG");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+
+
+
+        // SPEED
+       painter->setPen(_colorGreen);
+
+        if(AIRSPEED_HOLD)
+        {
+            r.setRect(-cellWidth,
+                      -cellHeight,
+                      cellWidth,
+                      cellHeight);
+
+            str.sprintf("IAS");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+        if(FLIGHT_LEVEL_CHANGE_ENGAGE)
+        {
+            r.setRect(-cellWidth,
+                      0,
+                      cellWidth,
+                      cellHeight);
+            str.sprintf("FLCH ENG");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+        // ATHR
+        if(AUTOTHROTTLE_ENGAGE)
+        {
+            r.setRect(-cellWidth,
+                      cellHeight,
+                      cellWidth,
+                      cellHeight);
+            str.sprintf("ATHR ENG");
+            painter->setPen(_colorGreen);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+        // VS
+        r.setRect(cellWidth,
+                  cellHeight,
+                  cellWidth,
+                  cellHeight);
+        if(VNAV_ENGAGED)
+        {
+            painter->setPen(_colorGreen);
+            str.sprintf("VNAV ENG");
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignHCenter,str,NULL);
+        }
+
+        painter->setPen(_defaultPen);
+
+        // NAV Source
+        r.setRect(-(2*cellWidth),
+                  -(2*cellHeight),
+                  cellWidth,
+                  cellHeight);
+        switch(_hsi_source_select_pilot)
+        {
+        case 0:
+            str = "NAV1";
+            break;
+        case 1:
+            str = "NAV2";
+            break;
+        case 2:
+            str = "GPS";
+            break;
+        }
+        painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+
+
+        // Nav Aid Data
+        r.setRect(-(2*cellWidth),
+                  -(cellHeight),
+                  cellWidth,
+                  cellHeight);
+
+        switch(_hsi_source_select_pilot)
+        {
+        case 0:
+            str = _nav1_nav_id;
+            break;
+        case 1:
+            str = _nav2_nav_id;
+            break;
+        case 2:
+            str = _gps_nav_id;
+            break;
+        }
+        painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+
+        // DME
+        if(_hsi_has_dme_pilot)
+        {
+            r.setRect(-(2*cellWidth),
+                      0,
+                      cellWidth,
+                      cellHeight);
+            str.sprintf("%.1f NM",_hsi_dme_distance_nm_pilot);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+            r.setRect(-(2*cellWidth),
+                      cellHeight,
+                      cellWidth,
+                      cellHeight);
+            str.sprintf("%d KTS",_hsi_dme_speed_kts_pilot);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+        }
+        else
+        {
+            str = "--";
+            r.setRect(-(2*cellWidth),
+                      0,
+                      cellWidth,
+                      cellHeight);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+            r.setRect(-(2*cellWidth),
+                      cellHeight,
+                      cellWidth,
+                      cellHeight);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+        }
+
+        painter->restore();
+
+    }
+
 void PFDDisplay::drawAttitudeIndicator(QPainter *painter, int attitudeX, int attitudeY, int attitudeWidth, int attitudeHeight) {
     painter->save(); {
 
@@ -221,7 +546,7 @@ void PFDDisplay::drawAttitudeIndicator(QPainter *painter, int attitudeX, int att
         // This assumes we have 10% of the width and height on the left and right of the attitude indicator
         // Move to center
 
-        float IlsDotBufferSpace = .1;      // 10% of the width
+        float IlsDotBufferSpace = ILS_BUFFER_SPACE;      // 10% of the width
 
         {
 
@@ -261,6 +586,28 @@ void PFDDisplay::drawAttitudeIndicator(QPainter *painter, int attitudeX, int att
                 startY = offset;
                 drawDiamond(painter,startX,startY,ilsDotRadius);
             }
+
+            QString str;
+            painter->setPen(_colorStroke);
+            painter->setFont(_baroFont);
+
+
+            // CRS
+            QRect r(-(attitudeWidth/2),
+                    (attitudeWidth/2) + (ilsAreaWidthandHeight),
+                    attitudeWidth/2,
+                    ilsAreaWidthandHeight);
+
+            str.sprintf("CRS %03d",(int)_hsi_obs_deg_mag);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
+
+            // HDG
+            r.setRect(0,
+                      (attitudeWidth/2) + (ilsAreaWidthandHeight),
+                      attitudeWidth/2,
+                      ilsAreaWidthandHeight);
+            str.sprintf("HDG %03d",(int)_headingBug_value);
+            painter->drawText(r,Qt::AlignVCenter|Qt::AlignRight,str,NULL);
 
             painter->restore();
         }
