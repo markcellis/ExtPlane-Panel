@@ -39,7 +39,8 @@ public slots:
     void setStrengthOff(int val) { _strengthOff = val; }
     void setShowValue(bool val) { _showValue = val; }
     void setShowFloat(bool val) { _showFloat = val; }
-    void setFloatFormat(QString name);
+    void setDecimalPrecision(int val) { _decimalPrecision = val; }
+    void setDecimalPrecision(float val) { _decimalPrecision = val; }
     void loadPreset(int val);
 
 private:
@@ -51,7 +52,7 @@ private:
     //double _datarefValue;
     bool _on;
     QString _datarefValue;
-    QString _floatFormat;
+    int _decimalPrecision;
 
     // Configuration variables
     QString _labelOn;

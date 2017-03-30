@@ -25,6 +25,7 @@ IndicatorDisplay::IndicatorDisplay(ExtPlanePanel *panel, ExtPlaneConnection *con
     _strengthOff = 0;
     _on = false;
     _valueDivisor = 1;
+    _decimalPrecision = 2;
 
     // Make connection
     //conn->registerClient(&_client);
@@ -33,7 +34,6 @@ IndicatorDisplay::IndicatorDisplay(ExtPlanePanel *panel, ExtPlaneConnection *con
 
     // Defaults
     setDataRefName("sim/flightmodel/controls/parkbrake");
-    setFloatFormat("%f");
     setSize(100,30);
 
 }
@@ -52,7 +52,7 @@ void IndicatorDisplay::storeSettings(QSettings &settings) {
     settings.setValue("showvalue", _showValue);
     settings.setValue("showfloat", _showFloat);
     settings.setValue("valuedivisor", _valueDivisor);
-    settings.setValue("floatformat", _floatFormat);
+    settings.setValue("decimalprecision", _decimalPrecision);
 }
 
 void IndicatorDisplay::loadSettings(QSettings &settings) {
@@ -69,7 +69,7 @@ void IndicatorDisplay::loadSettings(QSettings &settings) {
     setShowValue(settings.value("showvalue","false").toString()=="true");
     setShowFloat(settings.value("showfloat","false").toString()=="true");
     setValueDivisor(settings.value("valuedivisor","1").toInt());
-    setFloatFormat(settings.value("floatformat","%f").toString());
+    setDecimalPrecision(settings.value("decimalprecision","2").toInt());
 
     DEBUG << _datarefName;
 }
@@ -126,7 +126,7 @@ void IndicatorDisplay::createSettings(QGridLayout *layout) {
     createColorSetting(layout,"Label Color",_labelColor,SLOT(setLabelColor(QColor)));
     createCheckboxSetting(layout,"Show Value",_showValue,SLOT(setShowValue(bool)));
     createCheckboxSetting(layout,"Show as Float",_showFloat,SLOT(setShowFloat(bool)));
-    createLineEditSetting(layout,"Float Format",_floatFormat,SLOT(setFloatFormat(QString)));
+    createNumberInputSetting(layout,"Decimal Precision",_decimalPrecision,SLOT(setDecimalPrecision(float)));
     createColorSetting(layout,"Value Color",_valueColor,SLOT(setValueColor(QColor)));
     createNumberInputSetting(layout,"Value Divisor",_valueDivisor,SLOT(setValueDivisor(float)));
 }
@@ -141,7 +141,7 @@ void IndicatorDisplay::loadPreset(int val) {
     _valueDivisor = 1;
     _showValue = false;
     _showFloat = false;
-    setFloatFormat("%f");
+    _decimalPrecision = 2;
     if(val == 1) {
         _labelOn = "BRAKES";
         _labelOff = "BRAKES";
@@ -267,10 +267,6 @@ void IndicatorDisplay::loadPreset(int val) {
     }
 }
 
-void IndicatorDisplay::setFloatFormat(QString name) {
-
-    _floatFormat = name;
-}
 
 
 void IndicatorDisplay::setDataRefName(QString name) {
@@ -320,17 +316,7 @@ void IndicatorDisplay::update(void)
     {
         if(_showFloat)
         {
-            if(_floatFormat.length() > 0)
-            {
-                QByteArray ba = _floatFormat.toLatin1();
-                const char *formatStr = ba.data();
-                _datarefValue.sprintf(formatStr,valDouble);
-            }
-            else
-            {
-                _datarefValue = QString("%1").arg(valDouble);
-            }
-
+            _datarefValue = QString("%1").arg(valDouble,0,'f',_decimalPrecision);
         }
         else
         {
