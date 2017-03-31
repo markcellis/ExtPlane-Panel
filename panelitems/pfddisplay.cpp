@@ -109,7 +109,7 @@ PFDDisplay::PFDDisplay(ExtPlanePanel *panel, ExtPlaneConnection *conn) :
     _client.subscribeDataRef(DATAREF_HSI_VERTICAL_DOTS,.05);
     _client.subscribeDataRef(DATAREF_HSI_GLIDESLOPE_FLAG,.2);
     _client.subscribeDataRef(DATAREF_METRIC_PRESS,.2);
-    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.2);
+    _client.subscribeDataRef(DATAREF_BAROMETER_SETTING,.005);
     _client.subscribeDataRef(DATAREF_HSI_OBS_DEG_MAG,.2);
     _client.subscribeDataRef(DATAREF_AUTOPILOT_ON,.9);
     _client.subscribeDataRef(DATAREF_AUTOPILOT_STATE,.9);
