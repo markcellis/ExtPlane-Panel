@@ -31,33 +31,33 @@ public slots:
     void dataRefChanged(QString name, QString val);
     void setDataRefName(QString name);
 
-    void setValueOff(int value) { _valueOff = value; }
-    void setMaskOff(int value) { _offMask = value; }
+    void setValueOff(float value) { _valueOff = (int)value; }
+    void setMaskOff(float value) { _offMask = (int)value; }
     void setLabelOff(QString val) { _labelOff = val; }
     void setLabelColorOff(QColor val) { _labelColorOff = val; }
 
-    void setValueOn0(int value) {_valueOn[0] = value; }
-    void setMaskOn0(int value) {_onMask[0] = value; }
+    void setValueOn0(float value) {_valueOn[0] = (int)value; }
+    void setMaskOn0(float value) {_onMask[0] = (int)value; }
     void setLabelOn0(QString val) {_labelOn[0] = val; }
     void setLabelColorOn0(QColor val) {_labelColorOn[0] = val; }
 
-    void setValueOn1(int value) {_valueOn[1] = value; }
-    void setMaskOn1(int value) {_onMask[1] = value; }
+    void setValueOn1(float value) {_valueOn[1] = (int)value; }
+    void setMaskOn1(float value) {_onMask[1] = (int)value; }
     void setLabelOn1(QString val) {_labelOn[1] = val; }
     void setLabelColorOn1(QColor val) {_labelColorOn[1] = val; }
 
-    void setValueOn2(int value) {_valueOn[2] = value; }
-    void setMaskOn2(int value) {_onMask[2] = value; }
+    void setValueOn2(float value) {_valueOn[2] = (int)value; }
+    void setMaskOn2(float value) {_onMask[2] = (int)value; }
     void setLabelOn2(QString val) {_labelOn[2] = val; }
     void setLabelColorOn2(QColor val) {_labelColorOn[2] = val; }
 
-    void setValueOn3(int value) {_valueOn[3] = value; }
-    void setMaskOn3(int value) {_onMask[3] = value; }
+    void setValueOn3(float value) {_valueOn[3] = (int)value; }
+    void setMaskOn3(float value) {_onMask[3] = (int)value; }
     void setLabelOn3(QString val) {_labelOn[3] = val; }
     void setLabelColorOn3(QColor val) {_labelColorOn[3] = val; }
 
-    void setValueOn4(int value) {_valueOn[4] = value; }
-    void setMaskOn4(int value) {_onMask[4] = value; }
+    void setValueOn4(float value) {_valueOn[4] = (int)value; }
+    void setMaskOn4(float value) {_onMask[4] = (int)value; }
     void setLabelOn4(QString val) {_labelOn[4] = val; }
     void setLabelColorOn4(QColor val) {_labelColorOn[4] = val; }
 

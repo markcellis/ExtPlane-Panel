@@ -119,6 +119,11 @@ void EnumeratedLight::createLabel(int w, int h) {
         _labelGlowItem->setGraphicsEffect(effect);
         this->scene()->addItem(_labelGlowItem);
     }
+    else if(_labelGlowItem && this->scene())
+    {
+        this->scene()->removeItem(_labelGlowItem);        // Remove a prevously created one
+        _labelGlowItem = NULL;
+    }
 }
 
 void EnumeratedLight::itemSizeChanged(float w, float h) {
@@ -169,6 +174,8 @@ void EnumeratedLight::storeSettings(QSettings &settings) {
 
     }
 
+
+
 }
 
 void EnumeratedLight::loadSettings(QSettings &settings) {
@@ -181,7 +188,7 @@ void EnumeratedLight::loadSettings(QSettings &settings) {
     setGlowStrength(settings.value("glowstrength","80").toInt());
 
     setValueOff(settings.value("offvalue","0").toInt());
-    setMaskOff(settings.value("offvalue","0").toInt());
+    setMaskOff(settings.value("offmask","0").toInt());
     setLabelOff(settings.value("labeloff","BRAKES").toString());
     setLabelColorOff(QColor(settings.value("offcolor","red").toString()));
 
@@ -203,7 +210,7 @@ void EnumeratedLight::loadSettings(QSettings &settings) {
 
     }
 
-
+    settingChanged();
     DEBUG << _datarefName;
 }
 
@@ -215,36 +222,36 @@ void EnumeratedLight::createSettings(QGridLayout *layout) {
     createSliderSetting(layout,"Strength On",0,100,_strengthOn,SLOT(setStrengthOn(int)));
     createSliderSetting(layout,"Strength Off",0,100,_strengthOff,SLOT(setStrengthOff(int)));
 
-    createNumberInputSetting(layout,"Off Value", _valueOff,SLOT(setValueOff(int)));
-    createNumberInputSetting(layout,"Off Mask", _offMask,SLOT(setMaskOff(int)));
+    createNumberInputSetting(layout,"Off Value", _valueOff,SLOT(setValueOff(float)));
+    createNumberInputSetting(layout,"Off Mask", _offMask,SLOT(setMaskOff(float)));
     createLineEditSetting(layout,"Label Off",_labelOff,SLOT(setLabelOff(QString)));
     createColorSetting(layout,"Off Label Color",_labelColorOff,SLOT(setLabelColorOff(QColor)));
 
 
     createSliderSetting(layout,"Label Glow",0,100,_glowStrength,SLOT(setGlowStrength(int)));
 
-    createNumberInputSetting(layout,"On Value 1", _valueOn[0],SLOT(setValueOn0(int)));
-    createNumberInputSetting(layout,"On Mask 1", _onMask[0],SLOT(setMaskOn0(int)));
+    createNumberInputSetting(layout,"On Value 1", _valueOn[0],SLOT(setValueOn0(float)));
+    createNumberInputSetting(layout,"On Mask 1", _onMask[0],SLOT(setMaskOn0(float)));
     createLineEditSetting(layout,"On Label 1", _labelOn[0],SLOT(setLabelOn0(QString)));
     createColorSetting(layout,"On Label Color 1",_labelColorOn[0],SLOT(setLabelColorOn0(QColor)));
 
-    createNumberInputSetting(layout,"On Value 2", _valueOn[1],SLOT(setValueOn1(int)));
-    createNumberInputSetting(layout,"On Mask 2", _onMask[1],SLOT(setMaskOn1(int)));
+    createNumberInputSetting(layout,"On Value 2", _valueOn[1],SLOT(setValueOn1(float)));
+    createNumberInputSetting(layout,"On Mask 2", _onMask[1],SLOT(setMaskOn1(float)));
     createLineEditSetting(layout,"On Label 2", _labelOn[1],SLOT(setLabelOn1(QString)));
     createColorSetting(layout,"On Label Color 2",_labelColorOn[1],SLOT(setLabelColorOn1(QColor)));
 
-    createNumberInputSetting(layout,"On Value 3", _valueOn[2],SLOT(setValueOn2(int)));
-    createNumberInputSetting(layout,"On Mask 3", _onMask[2],SLOT(setMaskOn2(int)));
+    createNumberInputSetting(layout,"On Value 3", _valueOn[2],SLOT(setValueOn2(float)));
+    createNumberInputSetting(layout,"On Mask 3", _onMask[2],SLOT(setMaskOn2(float)));
     createLineEditSetting(layout,"On Label 3", _labelOn[2],SLOT(setLabelOn2(QString)));
     createColorSetting(layout,"On Label Color 3",_labelColorOn[2],SLOT(setLabelColorOn2(QColor)));
 
-    createNumberInputSetting(layout,"On Value 4", _valueOn[3],SLOT(setValueOn3(int)));
-    createNumberInputSetting(layout,"On Mask 4", _onMask[3],SLOT(setMaskOn3(int)));
+    createNumberInputSetting(layout,"On Value 4", _valueOn[3],SLOT(setValueOn3(float)));
+    createNumberInputSetting(layout,"On Mask 4", _onMask[3],SLOT(setMaskOn3(float)));
     createLineEditSetting(layout,"On Label 4", _labelOn[3],SLOT(setLabelOn3(QString)));
     createColorSetting(layout,"On Label Color 4",_labelColorOn[3],SLOT(setLabelColorOn3(QColor)));
 
-    createNumberInputSetting(layout,"On Value 5", _valueOn[4],SLOT(setValueOn4(int)));
-    createNumberInputSetting(layout,"On Mask 5", _onMask[4],SLOT(setMaskOn4(int)));
+    createNumberInputSetting(layout,"On Value 5", _valueOn[4],SLOT(setValueOn4(float)));
+    createNumberInputSetting(layout,"On Mask 5", _onMask[4],SLOT(setMaskOn4(float)));
     createLineEditSetting(layout,"On Label 5", _labelOn[4],SLOT(setLabelOn4(QString)));
     createColorSetting(layout,"On Label Color 5",_labelColorOn[4],SLOT(setLabelColorOn4(QColor)));
 
@@ -313,8 +320,8 @@ void EnumeratedLight::loadPreset(int val) {
         _onMask[1] = 0;
         _onMask[2] = 0;
         _labelColorOn[0] = Qt::green;
-        _labelColorOn[1] = Qt::green;
-        _labelColorOn[2] = Qt::green;
+        _labelColorOn[1] = Qt::yellow;
+        _labelColorOn[2] = Qt::blue;
 
     } else if(val == 2) {
         _strengthOn = 100;
@@ -506,11 +513,15 @@ void EnumeratedLight::loadPreset(int val) {
         _onMask[1] = 0;
         _labelColorOn[1] = Qt::green;
 
-        _labelOn[2] = "TEST";
+        _labelOn[2] = "TA/RA";
         _valueOn[2] = 3;
         _onMask[2] = 0;
-        _labelColorOn[2] = Qt::yellow;
+        _labelColorOn[2] = Qt::green;
 
+        _labelOn[3] = "TEST";
+        _valueOn[3] = 4;
+        _onMask[3] = 0;
+        _labelColorOn[3] = Qt::yellow;
     }
 
 
@@ -584,7 +595,6 @@ void EnumeratedLight::evaluateDatarefValue(void)
             _onCurrentLabel = QString("?%1").arg(_datarefValue);
             _labelColor = Qt::red;
         }
-        createLabel(width(),height());
 
     }
 
@@ -597,6 +607,7 @@ void EnumeratedLight::evaluateDatarefValue(void)
     {
         _on = newOn;
     }
+    createLabel(width(),height());
     update();
 }
 
