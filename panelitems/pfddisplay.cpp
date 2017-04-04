@@ -504,7 +504,7 @@ void PFDDisplay::render(QPainter *painter, int width, int height) {
         painter->drawText(r,Qt::AlignVCenter|Qt::AlignLeft,str,NULL);
 
         // DME
-        if(_hsi_has_dme_pilot)
+        if(_hsi_has_dme_pilot || _hsi_source_select_pilot == 2)     // If the VOR has DME data or we are in GPS more
         {
             r.setRect(-(2*cellWidth),
                       0,
